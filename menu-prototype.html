@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Fingerpaint — Menu Prototype</title>
+<!--
+  THROWAWAY PROTOTYPE — kid-navigable mode picker (coverflow / "cycle with peeks").
+  Standalone; does NOT touch index.html or the real app. Safe to delete.
+  Iteration 1: navigation feel + recognition via grounded color+symbol identity cards.
+  (Live real-mode previews in the centered card are the next iteration.)
+-->
+<style>
+  :root{ --stage:#0a0807; --cw:300px; --ch:360px; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; height:100%; background:var(--stage); overflow:hidden; touch-action:none;
+    user-select:none; -webkit-user-select:none;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif; color:#fff; }
+  #stage{ position:fixed; inset:0; perspective:1500px; }
+  .card{ position:absolute; top:50%; left:50%; width:var(--cw); height:var(--ch);
+    margin-left:calc(var(--cw) / -2); margin-top:calc(var(--ch) / -2);
+    border-radius:34px; overflow:hidden; will-change:transform,opacity;
+    box-shadow:0 30px 60px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.07);
+    display:flex; align-items:center; justify-content:center; transform-style:preserve-3d; }
+  .sym{ width:60%; height:60%; margin-top:-6%; pointer-events:none; }
+  .nm{ position:absolute; bottom:7%; left:0; right:0; text-align:center; pointer-events:none;
+    font-size:clamp(17px,3.3vh,29px); font-weight:600; letter-spacing:.3px; color:#fff;
+    text-shadow:0 2px 10px rgba(0,0,0,.5); }
+  .card.light .nm{ color:#2b2722; text-shadow:none; }
+  #dots{ position:fixed; left:0; right:0; bottom:16px; display:flex; gap:7px; justify-content:center; z-index:20; }
+  #dots i{ width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,.22); transition:.2s; }
+  #dots i.on{ background:#fff; transform:scale(1.5); }
+  #hint{ position:fixed; left:0; right:0; top:0; text-align:center; z-index:20;
+    padding-top:calc(env(safe-area-inset-top,8px) + 8px); font-size:13px; opacity:.42; }
+  #tag{ position:fixed; top:calc(env(safe-area-inset-top,8px) + 6px); right:12px; font-size:11px; letter-spacing:1px; opacity:.3; z-index:20; }
+  #enter{ position:fixed; inset:0; z-index:40; display:none; align-items:center; justify-content:center; background:rgba(5,4,4,.55); backdrop-filter:blur(6px); }
+  #enter.show{ display:flex; }
+  #panel{ width:min(86vw,86vh); height:min(86vw,86vh); border-radius:42px; position:relative;
+    display:flex; align-items:center; justify-content:center; box-shadow:0 40px 90px rgba(0,0,0,.6); }
+  #play{ text-align:center; font-size:clamp(40px,9vh,80px); font-weight:700; }
+  #play small{ display:block; font-size:.34em; opacity:.78; font-weight:500; margin-top:.3em; letter-spacing:.5px; }
+  #back{ position:absolute; top:16px; left:16px; width:54px; height:54px; border:none; border-radius:50%;
+    background:rgba(0,0,0,.32); color:#fff; font-size:30px; line-height:50px; }
+</style>
+</head>
+<body>
+<div id="hint">swipe to flip · tap the middle one to choose</div>
+<div id="tag">PROTOTYPE</div>
+<div id="stage"></div>
+<div id="dots"></div>
+<div id="enter"><div id="panel"><button id="back" aria-label="back">&lsaquo;</button><div id="play"></div></div></div>
+<script>
+/* 13 modes — palettes grounded in the decoded sub-apps; bold single-glyph symbols for pre-readers. */
+const MODES = [
+ {key:'smoke',name:'Smoke',bg:'radial-gradient(130% 130% at 50% 28%,#1a1d28,#050608)',
+  sym:`<svg class="sym" viewBox="0 0 100 100" fill="none" stroke="#dfe6f0" stroke-width="7" stroke-linecap="round"><path d="M56 86C42 75 65 64 51 53C40 44 60 34 50 24C46 19 51 14 51 14"/><path d="M33 80C26 73 37 66 30 58" opacity=".45"/></svg>`},
+ {key:'ribbons',name:'Ribbons',bg:'radial-gradient(130% 130% at 50% 30%,#13141d,#04050a)',
+  sym:`<svg class="sym" viewBox="0 0 100 100" fill="none" stroke-width="9" stroke-linecap="round"><defs><linearGradient id="rb" x1="0" x2="1"><stop offset="0" stop-color="#ff5ca8"/><stop offset=".5" stop-color="#a98bff"/><stop offset="1" stop-color="#4cd6e6"/></linearGradient></defs><path d="M10 60C28 30 44 86 62 54C75 31 86 52 92 44" stroke="url(#rb)"/></svg>`},
+ {key:'slime',name:'Slime',bg:'radial-gradient(130% 130% at 50% 30%,#0c1a0c,#020802)',
+  sym:`<svg class="sym" viewBox="0 0 100 100" fill="#7CFC4D"><path d="M26 42C26 25 74 25 74 44C74 57 63 60 63 72C63 82 54 84 52 74C50 84 41 82 41 72C41 60 26 57 26 42Z"/><circle cx="69" cy="80" r="5"/></svg>`},
+ {key:'coral',name:'Coral',bg:'radial-gradient(130% 130% at 50% 30%,#0e1828,#04060a)',
+  sym:`<svg class="sym" viewBox="0 0 100 100" fill="none" stroke="#bfe0ff" stroke-width="7" stroke-linecap="round"><path d="M50 88V52M50 64L34 48M50 64L66 48M34 48V34M66 48V34M50 52V36"/></svg>`},
+ {key:'watercolor',name:'Watercolor',light:true,bg:'radial-gradient(130% 130% at 50% 30%,#faf5ea,#ece1cd)',
+  sym:`<svg class="sym" viewBox="0 0 100 100"><defs><radialGradient id="wc"><stop offset="0" stop-color="#ffd23f"/><stop offset=".5" stop-color="#4cc6c6"/><stop offset="1" stop-color="#466bff"/></radialGradient></defs><path d="M30 36C18 46 24 67 41 71C56 75 81 70 81 51C82 35 64 22 49 27C42 29 36 31 30 36Z" fill="url(#wc)"/></svg>`},
+ {key:'inkwater',name:'Inkwater',light:true,bg:'radial-gradient(130% 130% at 50% 30%,#f6f9fb,#e2ecf0)',
+  sym:`<svg class="sym" viewBox="0 0 100 100"><circle cx="50" cy="62" r="27" fill="none" stroke="#27303a" stroke-width="3" opacity=".3"/><path d="M50 16C40 38 34 50 34 60A16 16 0 1 0 66 60C66 50 60 38 50 16Z" fill="#27303a"/></svg>`},
+ {key:'goo',name:'Goo',bg:'radial-gradient(130% 130% at 50% 30%,#232a3a,#0d1016)',
+  sym:`<svg class="sym" viewBox="0 0 100 100" fill="#cfd8e6"><circle cx="42" cy="46" r="17"/><circle cx="63" cy="60" r="14"/></svg>`},
+ {key:'drift',name:'Drift',bg:'radial-gradient(130% 130% at 50% 30%,#0e2230,#050d16)',
+  sym:`<svg class="sym" viewBox="0 0 100 100" fill="#cfe6e4"><circle cx="31" cy="40" r="7"/><circle cx="55" cy="27" r="5" opacity=".8"/><circle cx="69" cy="52" r="9"/><circle cx="44" cy="63" r="6" opacity=".7"/><circle cx="73" cy="75" r="4" opacity=".6"/><circle cx="34" cy="79" r="5" opacity=".8"/></svg>`},
+ {key:'bloomweave',name:'Bloomweave',bg:'radial-gradient(130% 130% at 50% 30%,#1a2240,#070a12)',
+  sym:`<svg class="sym" viewBox="0 0 100 100"><g fill="#c77dff"><ellipse cx="50" cy="27" rx="10" ry="16"/><ellipse cx="50" cy="73" rx="10" ry="16"/><ellipse cx="27" cy="50" rx="16" ry="10"/><ellipse cx="73" cy="50" rx="16" ry="10"/></g><g fill="#7bdff2"><ellipse cx="35" cy="35" rx="8" ry="13" transform="rotate(45 35 35)"/><ellipse cx="65" cy="65" rx="8" ry="13" transform="rotate(45 65 65)"/><ellipse cx="65" cy="35" rx="8" ry="13" transform="rotate(-45 65 35)"/><ellipse cx="35" cy="65" rx="8" ry="13" transform="rotate(-45 35 65)"/></g><circle cx="50" cy="50" r="9" fill="#ffd23f"/></svg>`},
+ {key:'modus',name:'Modus',bg:'radial-gradient(130% 130% at 50% 30%,#161616,#000)',
+  sym:`<svg class="sym" viewBox="0 0 100 100" fill="none" stroke-width="6"><rect x="18" y="18" width="64" height="64" rx="3" stroke="#ff3ca0"/><rect x="32" y="32" width="36" height="36" rx="2" stroke="#3cf0ff"/><rect x="44" y="44" width="12" height="12" stroke="#ffe23c"/></svg>`},
+ {key:'pulse',name:'Pulse',bg:'radial-gradient(130% 130% at 50% 30%,#2a1e10,#0d0b07)',
+  sym:`<svg class="sym" viewBox="0 0 100 100" fill="none" stroke="#f2c879" stroke-width="5"><circle cx="50" cy="50" r="10"/><circle cx="50" cy="50" r="22" opacity=".7"/><circle cx="50" cy="50" r="34" opacity=".4"/></svg>`},
+ {key:'balloon',name:'Balloon Pop',bg:'radial-gradient(130% 130% at 50% 30%,#2a1838,#100a18)',
+  sym:`<svg class="sym" viewBox="0 0 100 100"><path d="M50 16C33 16 29 40 42 57C47 63 47 66 50 66C53 66 53 63 58 57C71 40 67 16 50 16Z" fill="#ff5c7a"/><path d="M50 66C50 72 55 74 52 82" fill="none" stroke="#ffd23f" stroke-width="3" stroke-linecap="round"/><circle cx="44" cy="34" r="5" fill="#fff" opacity=".5"/></svg>`},
+ {key:'terrarium',name:'Terrarium',bg:'radial-gradient(130% 130% at 50% 30%,#241f16,#0a0805)',
+  sym:`<svg class="sym" viewBox="0 0 100 100" fill="none"><path d="M24 80h52" stroke="#6a6354" stroke-width="5" stroke-linecap="round"/><path d="M28 80a22 22 0 0 1 44 0" stroke="#4ea3c9" stroke-width="4" opacity=".55"/><path d="M50 80V54" stroke="#9bd84a" stroke-width="5" stroke-linecap="round"/><path d="M50 60C42 60 36 54 36 46C46 46 50 52 50 60Z" fill="#9bd84a"/><path d="M50 56C58 56 64 50 64 42C54 42 50 48 50 56Z" fill="#9bd84a"/><circle cx="66" cy="63" r="4" fill="#ffd23f"/></svg>`}
+];
+
+const stage=document.getElementById('stage');
+const dotsEl=document.getElementById('dots');
+const N=MODES.length;
+let CW,CH,SP, cur=0, target=0, dragging=false, startX=0, startCur=0, lastX=0, lastT=0, vel=0, moved=0;
+
+function sizes(){
+  const vw=innerWidth, vh=innerHeight;
+  CW=Math.min(vw*0.66, vh*0.58, 440);
+  CH=Math.min(CW*1.18, vh*0.72);
+  SP=CW*0.62;
+  const r=document.documentElement.style;
+  r.setProperty('--cw',CW+'px'); r.setProperty('--ch',CH+'px');
+}
+
+const cards=MODES.map((m,i)=>{
+  const c=document.createElement('div');
+  c.className='card'+(m.light?' light':'');
+  c.style.background=m.bg;
+  c.innerHTML=m.sym+'<div class="nm">'+m.name+'</div>';
+  c.dataset.i=i;
+  stage.appendChild(c);
+  const d=document.createElement('i'); dotsEl.appendChild(d);
+  return c;
+});
+const dotEls=[...dotsEl.children];
+
+const wrapOff=o=>o-N*Math.round(o/N);
+
+function layout(){
+  for(let i=0;i<N;i++){
+    const off=wrapOff(i-cur), a=Math.abs(off), card=cards[i];
+    if(a>2.7){ card.style.display='none'; continue; }
+    card.style.display='flex';
+    const x=off*SP;
+    const scale=Math.max(0.6, 1-a*0.26);
+    const op=Math.max(0, 1-a*0.42);
+    const ry=Math.max(-44,Math.min(44,-off*26));
+    card.style.transform='translate3d('+x+'px,0,'+(-a*130)+'px) rotateY('+ry+'deg) scale('+scale+')';
+    card.style.opacity=op;
+    card.style.zIndex=String(100-Math.round(a*10));
+  }
+  const ci=((Math.round(cur)%N)+N)%N;
+  dotEls.forEach((d,i)=>d.classList.toggle('on',i===ci));
+}
+
+function tick(){
+  if(!dragging){
+    cur+=(target-cur)*0.18;
+    if(Math.abs(target-cur)<0.0008) cur=target;
+  }
+  layout();
+  requestAnimationFrame(tick);
+}
+
+stage.addEventListener('pointerdown',e=>{
+  dragging=true; startX=e.clientX; startCur=cur; lastX=e.clientX; lastT=performance.now(); vel=0; moved=0;
+  try{ stage.setPointerCapture(e.pointerId); }catch(_){}
+});
+stage.addEventListener('pointermove',e=>{
+  if(!dragging) return;
+  const dx=e.clientX-startX; moved=Math.max(moved,Math.abs(dx));
+  cur=startCur-dx/SP;
+  const now=performance.now(), dt=Math.max(8,now-lastT);
+  vel=((e.clientX-lastX)/SP)/(dt/1000);
+  lastX=e.clientX; lastT=now;
+});
+function endDrag(e){
+  if(!dragging) return; dragging=false;
+  if(moved<8){ // tap
+    const el=document.elementFromPoint(e.clientX,e.clientY);
+    const card=el&&el.closest&&el.closest('.card');
+    if(card){
+      const off=wrapOff((+card.dataset.i)-Math.round(cur));
+      if(Math.abs(off)<0.5) enter(((Math.round(cur)%N)+N)%N);
+      else target=Math.round(cur)+off;
+    }
+    return;
+  }
+  target=Math.round(cur-vel*0.11); // a little momentum, then snap
+}
+stage.addEventListener('pointerup',endDrag);
+stage.addEventListener('pointercancel',endDrag);
+
+const enterEl=document.getElementById('enter'), panel=document.getElementById('panel'), playEl=document.getElementById('play');
+function enter(i){
+  const m=MODES[i];
+  panel.style.background=m.bg;
+  playEl.innerHTML='&#9654;<small>'+m.name+'</small>';
+  playEl.style.color=m.light?'#2b2722':'#fff';
+  enterEl.classList.add('show');
+}
+document.getElementById('back').addEventListener('click',()=>enterEl.classList.remove('show'));
+
+addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight') target=Math.round(cur)+1;
+  else if(e.key==='ArrowLeft') target=Math.round(cur)-1;
+  else if(e.key==='Enter') enter(((Math.round(cur)%N)+N)%N);
+  else if(e.key==='Escape') enterEl.classList.remove('show');
+});
+addEventListener('resize',()=>{ sizes(); });
+
+sizes(); layout(); tick();
+</script>
+</body>
+</html>
