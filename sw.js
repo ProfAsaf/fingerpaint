@@ -3,8 +3,8 @@
    precache the page shell. Once installed (on the first online visit), the
    Home Screen app launches with no network at all.
    Bump CACHE (v1 -> v2 -> ...) whenever index.html changes to ship an update. */
-const CACHE = 'fingerpaint-v1';
-const CORE = ['./', './index.html'];
+const CACHE = 'fingerpaint-v2';
+const CORE = ['./', './index.html', './sw.js'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
