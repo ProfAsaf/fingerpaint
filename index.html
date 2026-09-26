@@ -102,16 +102,18 @@
   .su-sel{font:500 14px system-ui,-apple-system,sans-serif;color:#f2ede1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22);border-radius:9px;padding:7px 10px}
   .su-sel option{color:#1d1a16}
   @media (max-width:520px){ .su-games{grid-template-columns:repeat(3,1fr)} .su-q{font-size:21px} .su-seg{width:100%} .su-seg button{flex:1 1 auto;padding:8px 6px} }
-  /* grown-up doors: pairs of faint see-through circles (top middle -> games, bottom middle -> options);
+  /* grown-up doors: pairs of faint see-through circles near the sides (top pair -> games, bottom pair -> options);
      holding both circles of a pair still grows them until the menu opens. Touches pass through, so kids paint right over them */
-  .hold{position:fixed;width:40px;height:40px;margin-left:-20px;border-radius:50%;z-index:6;pointer-events:none;
-        border:1.5px solid rgba(255,255,255,.28);background:rgba(128,128,128,.08);box-shadow:0 0 0 1px rgba(0,0,0,.12);
+  .hold{position:fixed;width:28px;height:28px;border-radius:50%;z-index:6;pointer-events:none;
+        border:1px solid rgba(255,255,255,.15);background:rgba(128,128,128,.04);box-shadow:0 0 0 1px rgba(0,0,0,.05);
         transition:transform .3s ease-out,background .3s,border-color .3s}
   .hold.top{top:70px;top:calc(env(safe-area-inset-top,0px) + 70px)}
   .hold.bot{bottom:70px;bottom:calc(env(safe-area-inset-bottom,0px) + 70px)}
+  .hold.l{left:16px;left:calc(env(safe-area-inset-left,0px) + 16px)}
+  .hold.r{right:16px;right:calc(env(safe-area-inset-right,0px) + 16px)}
   .hold.live{pointer-events:auto;touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
   .hold.live::before{content:'';position:absolute;inset:-18px;border-radius:50%}
-  .hold.grow{transform:scale(2.6);background:rgba(232,196,122,.3);border-color:rgba(232,196,122,.95);transition-timing-function:linear}
+  .hold.grow{transform:scale(3.4);background:rgba(232,196,122,.3);border-color:rgba(232,196,122,.95);transition-timing-function:linear}
   /* Start screen: first-launch link */
   #oStart #oSetup{position:absolute;left:50%;bottom:max(26px,env(safe-area-inset-bottom));transform:translateX(-50%);width:auto;height:auto;padding:10px 16px;border:0;border-radius:8px;
         background:none;-webkit-backdrop-filter:none;backdrop-filter:none;animation:none;font:500 14px system-ui,-apple-system,sans-serif;letter-spacing:0;text-transform:none;color:rgba(242,237,225,.55);white-space:nowrap}
@@ -158,7 +160,7 @@ const SOUND={gentle:{vol:5,att:0.045,cap:0.14,voices:4,gap:90,own:0.5}, soft:{vo
 const FILTERS={none:'',soft:'saturate(.8) brightness(.92)',calm:'saturate(.58) brightness(.8)'};
 const OCEAN={on:6,low:3,off:0};
 const NO_CHIME={bloomweave:1,pulse:1,balloon:1,terrarium:1};   // games whose touch sound is their own (no launcher chime on top)
-const HOLD_MS=1500, HOLD_GAP=80, HOLD_R=36, HOLD_STILL=26;   // grown-up doors: hold time; px from mid-screen to each circle; touch radius; finger drift allowed
+const HOLD_MS=1500, HOLD_R=36, HOLD_STILL=26;   // grown-up doors: hold time; touch radius around a circle; finger drift allowed (px)
 function defaultSettings(){ return {filter:'none',sound:'normal',ocean:'on',touchVol:8,musicVol:6,quietStart:false,fewVoices:false,hideText:false,protectWork:false,hidden:{},order:MODES.map(m=>m.key),home:null}; }
 // "Not sure" (or no answer) always picks the gentler option
 function deriveSettings(a){ const s=defaultSettings(), gentle=v=>v==null||v==='unsure', loves=a.loves||[];
@@ -412,7 +414,7 @@ function suSave(){ const from=su.from; S=su.draft; saveSetup(su.answers); closeS
   if(from==='start'||S.hidden[current]) switchTo(homeKey()); }
 // grown-up doors: pairs of faint circles. Holding both circles of a pair grows them for HOLD_MS, then the pair's menu opens;
 // letting go shrinks them back. One circle on its own does nothing, so a child's single press or stroke opens nothing.
-function holdCircles(host,cls){ return [-1,1].map(s=>{ const e=mk('div','hold '+cls); e.style.left='calc(50% + '+s*HOLD_GAP+'px)'; host.appendChild(e); return e; }); }
+function holdCircles(host,cls){ return ['l','r'].map(s=>{ const e=mk('div','hold '+cls+' '+s); host.appendChild(e); return e; }); }
 function holdGrow(p,on){ if(on===!!p.on) return; p.on=on; clearTimeout(p.t);
   p.els.forEach(e=>{ e.style.transitionDuration=on?HOLD_MS+'ms':''; e.classList.toggle('grow',on); });
   if(on) p.t=setTimeout(()=>{ holdGrow(p,false); holdTouches.forEach(t=>t.used=true); p.done(); },HOLD_MS); }   // fingers still down can't re-open it
